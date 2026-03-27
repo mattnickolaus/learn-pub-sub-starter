@@ -6,6 +6,9 @@ import (
 	"os"
 	"os/signal"
 
+	"github.com/mattnickolaus/learn-pub-sub-starter/internal/pubsub"
+	"github.com/mattnickolaus/learn-pub-sub-starter/internal/routing"
+
 	amqp "github.com/rabbitmq/amqp091-go"
 )
 
@@ -19,6 +22,13 @@ func main() {
 	}
 	defer rmq.Close()
 	println("Connection successful!")
+
+	ch, err := rmq.Channel()
+	if err != nil {
+		log.Fatalf("Failed to connect to amqp with given connection stirng: %s", connStr)
+	}
+
+	pubsub.PublishJSON(ch, routing.ExchangePerilDirect, routing.PauseKey, routing.PlayingState{IsPaused: true})
 
 	// Create a channel to read the os.Signal to wait for Ctrl+C interrupt
 	signalChan := make(chan os.Signal, 1)
