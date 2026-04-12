@@ -15,8 +15,8 @@ import (
 
 func main() {
 	fmt.Println("Starting Peril client...")
-
 	connStr := "amqp://guest:guest@localhost:5672/"
+
 	rmq, err := amqp.Dial(connStr)
 	if err != nil {
 		log.Fatalf("Failed to connect to amqp with given connection stirng: %s", connStr)
@@ -29,7 +29,8 @@ func main() {
 		log.Fatalf("%v", err)
 	}
 
-	_, _, err = pubsub.DeclareAndBind(rmq,
+	_, queue, err := pubsub.DeclareAndBind(
+		rmq,
 		routing.ExchangePerilDirect,
 		routing.PauseKey+"."+userName,
 		routing.PauseKey,
@@ -40,14 +41,50 @@ func main() {
 	if err != nil {
 		log.Fatalf("Error during declare and bind: %v", err)
 	}
+	fmt.Printf("Queue %v declared and bound!\n", queue.Name)
 
-	// Create a channel to read the os.Signal to wait for Ctrl+C interrupt
-	signalChan := make(chan os.Signal, 1)
-	signal.Notify(signalChan, os.Interrupt)
+	gameState := gamelogic.NewGameState(userName)
 
-	s := <-signalChan
-	fmt.Printf("\nReceived signal: %s\n", s)
-	fmt.Printf("Program shutting down...\n")
-	os.Exit(0)
+	for {
+		words := gamelogic.GetInput()
+		if len(words) == 0 {
+			continue
+		}
+
+		switch words[0] {
+		case "spawn":
+			// "usage: spawn <location> <rank>"
+			err := gameState.CommandSpawn(words)
+			if err != nil {
+				log.Printf("%v\n", err)
+				log.Printf("\tPossible locations: americas, europe, africa, asia, antarctica, australia\n")
+				log.Printf("\tPossible ranks: infantry, cavalry, artillery\n")
+				continue
+			}
+		case "move":
+			mv, err := gameState.CommandMove(words)
+			if err != nil {
+				log.Printf("%v\n", err)
+				continue
+			}
+			if mv.ToLocation != "" {
+				fmt.Printf("Success\n")
+			}
+			// TODO: publish the move
+		case "status":
+			gameState.CommandStatus()
+		case "help":
+			gamelogic.PrintClientHelp()
+		case "spam":
+			fmt.Printf("Spamming not allowed yet!\n")
+			// TODO: publish a bunch of commands
+		case "quit":
+			gamelogic.PrintQuit()
+			return
+		default:
+			fmt.Printf("Unknown command, please try again\n")
+		}
+
+	}
 
 }

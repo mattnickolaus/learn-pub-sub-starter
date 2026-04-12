@@ -3,8 +3,6 @@ package main
 import (
 	"fmt"
 	"log"
-	"os"
-	"os/signal"
 
 	"github.com/mattnickolaus/learn-pub-sub-starter/internal/gamelogic"
 	"github.com/mattnickolaus/learn-pub-sub-starter/internal/pubsub"
@@ -31,7 +29,6 @@ func main() {
 
 	gamelogic.PrintServerHelp()
 
-InfiniteLoop:
 	for {
 		words := gamelogic.GetInput()
 		if len(words) == 0 {
@@ -41,35 +38,32 @@ InfiniteLoop:
 		switch words[0] {
 		case "pause":
 			fmt.Printf("Pausing...\n")
-			pubsub.PublishJSON(
+			err := pubsub.PublishJSON(
 				ch,
 				routing.ExchangePerilDirect,
 				routing.PauseKey,
 				routing.PlayingState{IsPaused: true},
 			)
+			if err != nil {
+				log.Printf("could not publish time: %v", err)
+			}
 		case "resume":
 			fmt.Printf("Resuming...\n")
-			pubsub.PublishJSON(
+			err := pubsub.PublishJSON(
 				ch,
 				routing.ExchangePerilDirect,
 				routing.PauseKey,
 				routing.PlayingState{IsPaused: false},
 			)
+			if err != nil {
+				log.Printf("could not publish time: %v", err)
+			}
 		case "quit":
-			fmt.Printf("Exiting...\n")
-			break InfiniteLoop
+			log.Printf("Exiting...\n")
+			return
 		default:
 			fmt.Printf("Unknown command, please try again")
 		}
 
 	}
-
-	// Create a channel to read the os.Signal to wait for Ctrl+C interrupt
-	signalChan := make(chan os.Signal, 1)
-	signal.Notify(signalChan, os.Interrupt)
-
-	s := <-signalChan
-	fmt.Printf("\nReceived signal: %s\n", s)
-	fmt.Printf("Program shutting down...\n")
-	os.Exit(0)
 }
