@@ -27,6 +27,19 @@ func main() {
 		log.Fatalf("Failed to connect to amqp with given connection stirng: %s", connStr)
 	}
 
+	_, _, err = pubsub.DeclareAndBind(
+		rmq,
+		routing.ExchangePerilTopic,
+		routing.GameLogSlug,
+		routing.GameLogSlug+".*",
+		pubsub.SimpleQueueType{
+			Durable: true,
+		},
+	)
+	if err != nil {
+		log.Fatalf("Failed to bind %s queue: %v", routing.GameLogSlug, err)
+	}
+
 	gamelogic.PrintServerHelp()
 
 	for {

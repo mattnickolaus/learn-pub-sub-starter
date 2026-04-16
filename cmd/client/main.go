@@ -3,8 +3,6 @@ package main
 import (
 	"fmt"
 	"log"
-	"os"
-	"os/signal"
 
 	"github.com/mattnickolaus/learn-pub-sub-starter/internal/gamelogic"
 	"github.com/mattnickolaus/learn-pub-sub-starter/internal/pubsub"
