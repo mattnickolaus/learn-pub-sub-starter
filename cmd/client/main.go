@@ -27,7 +27,10 @@ func main() {
 		log.Fatalf("%v", err)
 	}
 
-	_, queue, err := pubsub.DeclareAndBind(
+	gameState := gamelogic.NewGameState(userName)
+	fmt.Printf("Creating game state...\n\n")
+
+	err = pubsub.SubscribeJSON(
 		rmq,
 		routing.ExchangePerilDirect,
 		routing.PauseKey+"."+userName,
@@ -35,19 +38,20 @@ func main() {
 		pubsub.SimpleQueueType{
 			Transient: true,
 		},
+		handlerPause(gameState),
 	)
 	if err != nil {
-		log.Fatalf("Error during declare and bind: %v", err)
+		log.Fatalf("Error subscribe to queue: %v", err)
 	}
-	fmt.Printf("Queue %v declared and bound!\n", queue.Name)
 
-	gameState := gamelogic.NewGameState(userName)
+	fmt.Printf("Getting here\n")
 
 	for {
 		words := gamelogic.GetInput()
 		if len(words) == 0 {
 			continue
 		}
+		fmt.Printf("Got input\n")
 
 		switch words[0] {
 		case "spawn":
