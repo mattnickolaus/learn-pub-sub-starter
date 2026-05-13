@@ -22,6 +22,11 @@ func main() {
 	defer rmq.Close()
 	println("Connection successful!")
 
+	ch, err := rmq.Channel()
+	if err != nil {
+		log.Fatalf("Failed to connect to amqp with given connection stirng: %s", connStr)
+	}
+
 	userName, err := gamelogic.ClientWelcome()
 	if err != nil {
 		log.Fatalf("%v", err)
@@ -41,10 +46,22 @@ func main() {
 		handlerPause(gameState),
 	)
 	if err != nil {
-		log.Fatalf("Error subscribe to queue: %v", err)
+		log.Fatalf("Error subscribing to queue: %v", err)
 	}
 
-	fmt.Printf("Getting here\n")
+	err = pubsub.SubscribeJSON(
+		rmq,
+		routing.ExchangePerilTopic,
+		routing.ArmyMovesPrefix+"."+userName,
+		routing.ArmyMovesPrefix+".*",
+		pubsub.SimpleQueueType{
+			Transient: true,
+		},
+		handlerArmyMoves(gameState),
+	)
+	if err != nil {
+		log.Fatalf("Error subscribing to move queue: %v", err)
+	}
 
 	for {
 		words := gamelogic.GetInput()
@@ -69,10 +86,17 @@ func main() {
 				log.Printf("%v\n", err)
 				continue
 			}
-			if mv.ToLocation != "" {
-				fmt.Printf("Success\n")
+			err = pubsub.PublishJSON(
+				ch,
+				routing.ExchangePerilTopic,
+				routing.ArmyMovesPrefix+"."+userName,
+				mv,
+			)
+			if err != nil {
+				log.Printf("Error publishing move: %v\n", err)
+			} else {
+				log.Printf("Move published successfully\n")
 			}
-			// TODO: publish the move
 		case "status":
 			gameState.CommandStatus()
 		case "help":
