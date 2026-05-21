@@ -37,6 +37,14 @@ type SimpleQueueType struct {
 	Transient bool
 }
 
+type AckType int
+
+const (
+	Ack         AckType = iota // 0 and then increments
+	NackRequeue                // 1
+	NackDiscard                // 2
+)
+
 func DeclareAndBind(
 	conn *amqp.Connection,
 	exchange,
@@ -50,7 +58,10 @@ func DeclareAndBind(
 		return nil, amqp.Queue{}, err
 	}
 
-	q, err := ch.QueueDeclare(queueName, queueType.Durable, queueType.Transient, queueType.Transient, false, nil)
+	args := make(amqp.Table)
+	args["x-dead-letter-exchange"] = "peril_dlx"
+
+	q, err := ch.QueueDeclare(queueName, queueType.Durable, queueType.Transient, queueType.Transient, false, args)
 	if err != nil {
 		return nil, amqp.Queue{}, err
 	}
@@ -69,7 +80,7 @@ func SubscribeJSON[T any](
 	queueName,
 	key string,
 	queueType SimpleQueueType,
-	handler func(T),
+	handler func(T) AckType,
 ) error {
 	channel, queue, err := DeclareAndBind(conn, exchange, queueName, key, queueType)
 	if err != nil {
@@ -89,11 +100,31 @@ func SubscribeJSON[T any](
 				fmt.Printf("Could not Unmarshal message: %v\n", err)
 				continue
 			}
-			handler(data)
-			err = message.Ack(false)
-			if err != nil {
-				fmt.Printf("Could not Ack(nowledge) message: %v\n", err)
-				return
+
+			ack := handler(data)
+
+			switch ack {
+			case Ack:
+				err = message.Ack(false)
+				if err != nil {
+					fmt.Printf("Could not Ack(nowledge) message: %v\n", err)
+					return
+				}
+				fmt.Printf("\nMessage Ack(nowledge)ed\n")
+			case NackRequeue:
+				err = message.Nack(false, true)
+				if err != nil {
+					fmt.Printf("Could not Nack message for requeue: %v\n", err)
+					return
+				}
+				fmt.Printf("\nMessage Nack(ed) for Requeue\n")
+			case NackDiscard:
+				err = message.Nack(false, false)
+				if err != nil {
+					fmt.Printf("Could not Nack message and discard: %v\n", err)
+					return
+				}
+				fmt.Printf("\nMessage Nack(ed) and discarded\n")
 			}
 		}
 	}()

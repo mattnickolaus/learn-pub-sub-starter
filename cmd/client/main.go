@@ -68,7 +68,6 @@ func main() {
 		if len(words) == 0 {
 			continue
 		}
-		fmt.Printf("Got input\n")
 
 		switch words[0] {
 		case "spawn":
