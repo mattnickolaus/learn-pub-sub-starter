@@ -107,24 +107,21 @@ func SubscribeJSON[T any](
 			case Ack:
 				err = message.Ack(false)
 				if err != nil {
-					fmt.Printf("Could not Ack(nowledge) message: %v\n", err)
+					fmt.Printf("Could not Ack(nowledge) message: %v\n> ", err)
 					return
 				}
-				fmt.Printf("\nMessage Ack(nowledge)ed\n")
 			case NackRequeue:
 				err = message.Nack(false, true)
 				if err != nil {
-					fmt.Printf("Could not Nack message for requeue: %v\n", err)
+					fmt.Printf("Could not Nack message for requeue: %v\n> ", err)
 					return
 				}
-				fmt.Printf("\nMessage Nack(ed) for Requeue\n")
 			case NackDiscard:
 				err = message.Nack(false, false)
 				if err != nil {
-					fmt.Printf("Could not Nack message and discard: %v\n", err)
+					fmt.Printf("Could not Nack message and discard: %v\n> ", err)
 					return
 				}
-				fmt.Printf("\nMessage Nack(ed) and discarded\n")
 			}
 		}
 	}()

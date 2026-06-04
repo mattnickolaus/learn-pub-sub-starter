@@ -57,10 +57,24 @@ func main() {
 		pubsub.SimpleQueueType{
 			Transient: true,
 		},
-		handlerArmyMoves(gameState),
+		handlerArmyMoves(gameState, ch),
 	)
 	if err != nil {
 		log.Fatalf("Error subscribing to move queue: %v", err)
+	}
+
+	err = pubsub.SubscribeJSON(
+		rmq,
+		routing.ExchangePerilTopic,
+		routing.WarRecognitionsPrefix,
+		routing.WarRecognitionsPrefix+".*",
+		pubsub.SimpleQueueType{
+			Durable: true,
+		},
+		handlerConsumeWar(gameState),
+	)
+	if err != nil {
+		log.Fatalf("Error subscribing to war queue: %v", err)
 	}
 
 	for {
