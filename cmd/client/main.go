@@ -71,7 +71,7 @@ func main() {
 		pubsub.SimpleQueueType{
 			Durable: true,
 		},
-		handlerConsumeWar(gameState),
+		handlerConsumeWar(gameState, ch),
 	)
 	if err != nil {
 		log.Fatalf("Error subscribing to war queue: %v", err)
