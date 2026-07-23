@@ -27,7 +27,7 @@ func main() {
 		log.Fatalf("Failed to connect to amqp with given connection stirng: %s", connStr)
 	}
 
-	_, _, err = pubsub.DeclareAndBind(
+	err = pubsub.SubscribeGob(
 		rmq,
 		routing.ExchangePerilTopic,
 		routing.GameLogSlug,
@@ -35,9 +35,10 @@ func main() {
 		pubsub.SimpleQueueType{
 			Durable: true,
 		},
+		subscribeToGameLogHandler(),
 	)
 	if err != nil {
-		log.Fatalf("Failed to bind %s queue: %v", routing.GameLogSlug, err)
+		log.Fatalf("Failed to subscribe to %s queue: %v", routing.GameLogSlug, err)
 	}
 
 	gamelogic.PrintServerHelp()

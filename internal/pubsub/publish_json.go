@@ -117,13 +117,62 @@ func SubscribeJSON[T any](
 		key,
 		queueType,
 		handler,
-		json.Unmarshal,
+		JSONUnmarshaller,
 	)
 	if err != nil {
 		return err
 	}
 
 	return nil
+}
+
+func SubscribeGob[T any](
+	conn *amqp.Connection,
+	exchange,
+	queueName,
+	key string,
+	queueType SimpleQueueType,
+	handler func(T) AckType,
+) error {
+	err := subscribe(
+		conn,
+		exchange,
+		queueName,
+		key,
+		queueType,
+		handler,
+		gobUnmarshaller,
+	)
+	if err != nil {
+		return err
+	}
+
+	return nil
+}
+
+func gobUnmarshaller[T any](data []byte) (T, error) {
+	reader := bytes.NewBuffer(data)
+	dec := gob.NewDecoder(reader)
+
+	var value T
+
+	err := dec.Decode(&value)
+	if err != nil {
+		return value, err
+	}
+
+	return value, nil
+}
+
+func JSONUnmarshaller[T any](data []byte) (T, error) {
+	var value T
+
+	err := json.Unmarshal(data, &value)
+	if err != nil {
+		return value, err
+	}
+
+	return value, nil
 }
 
 func subscribe[T any](
@@ -133,7 +182,7 @@ func subscribe[T any](
 	key string,
 	queueType SimpleQueueType,
 	handler func(T) AckType,
-	unmarshaller func([]byte, any) error,
+	unmarshaller func([]byte) (T, error),
 ) error {
 	channel, queue, err := DeclareAndBind(conn, exchange, queueName, key, queueType)
 	if err != nil {
@@ -147,8 +196,7 @@ func subscribe[T any](
 
 	go func() {
 		for message := range deliveryChan {
-			var data T
-			err := unmarshaller(message.Body, &data)
+			data, err := unmarshaller(message.Body)
 			if err != nil {
 				fmt.Printf("Could not Unmarshal message: %v\n", err)
 				continue
